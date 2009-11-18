@@ -361,7 +361,7 @@
 
 
 
-;;; Simplenote browse local notes
+;;; Simplenote browser
 
 (defun simplenote-browse ()
   (interactive)
