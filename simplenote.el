@@ -431,9 +431,22 @@
                   (concat (file-name-as-directory simplenote-directory) key2))))
     (time-less-p time2 time1)))
 
+(setq simplenote-delete-me
+      (lambda (widget &rest ignore)
+        (simplenote-mark-note-for-deletion (widget-get widget :tag))
+        (widget-put widget :notify simplenote-undelete-me)
+        (widget-value-set widget "Undelete")
+        (widget-setup)))
+
+(setq simplenote-undelete-me
+  (lambda (widget &rest ignore)
+    (simplenote-unmark-note-for-deletion (widget-get widget :tag))
+    (widget-put widget :notify simplenote-delete-me)
+    (widget-value-set widget "Delete")
+    (widget-setup)))
+  
 (defun simplenote-note-widget (file &optional new)
-  (let (key full-filename modify modify-string note-text note-short temp-buffer
-            delete-me undelete-me)
+  (let (key full-filename modify modify-string note-text note-short temp-buffer)
     (if new
         (setq full-filename (concat (file-name-as-directory simplenote-directory)
                                     ".new/" file))
@@ -441,16 +454,6 @@
       (setq full-filename (concat (file-name-as-directory simplenote-directory) file)))
     (setq modify (nth 5 (file-attributes full-filename)))
     (setq modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
-    (setq delete-me (lambda (widget &rest ignore)
-                      (simplenote-mark-note-for-deletion (widget-get widget :tag))
-                      (widget-put widget :notify undelete-me)
-                      (widget-value-set widget "Undelete")
-                      (widget-setup)))
-    (setq undelete-me (lambda (widget &rest ignore)
-                        (simplenote-unmark-note-for-deletion (widget-get widget :tag))
-                        (widget-put widget :notify delete-me)
-                        (widget-value-set widget "Delete")
-                        (widget-setup)))
     (setq temp-buffer (get-buffer-create " *simplenote-temp*"))
     (with-current-buffer temp-buffer
       (insert-file-contents full-filename nil nil nil t)
@@ -473,8 +476,8 @@
                      :format "%[%v%]"
                      :tag key
                      :notify (if (eql (length file) 37)
-                                 undelete-me
-                               delete-me)
+                                 simplenote-undelete-me
+                               simplenote-delete-me)
                      (if (eql (length file) 37)
                          "Undelete"
                        "Delete"))
