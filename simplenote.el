@@ -44,16 +44,11 @@
   :safe t
   :group 'simplenote)
 
-(defface simplenote-browse-line-highlight
-  '((default :background "orange" :weight "bold"))
-  "Face for highlighting the current line."
-  :group 'simplenote)
-
-(make-variable-buffer-local 'simplenote-key)
-
-
 
 ;;; Simplenote authentication
+
+(defvar simplenote-key nil)
+(make-variable-buffer-local 'simplenote-key)
 
 (defvar simplenote-email-was-read-interactively nil)
 (defvar simplenote-password-was-read-interactively nil)
