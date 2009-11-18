@@ -55,8 +55,6 @@
 
 ;;; Simplenote authentication
 
-(defvar simplenote-token nil)
-(defvar simplenote-token-set-at nil)
 (defvar simplenote-email-was-read-interactively nil)
 (defvar simplenote-password-was-read-interactively nil)
 
@@ -92,24 +90,15 @@
 
 (defun simplenote-token ()
   (interactive)
-  (if (or (not simplenote-token)
-          (> (time-to-seconds (time-subtract (current-time) simplenote-token-set-at))
-             86400))
-      (let ((token (simplenote-get-token (simplenote-email) (simplenote-password))))
-        (if token
-            (progn
-              (setq simplenote-token token)
-              (setq simplenote-token-set-at (current-time))
-              (message "Simplenote authentication succeeded"))
-          (progn
-            (if simplenote-email-was-read-interactively
-                (setq simplenote-email nil))
-            (if simplenote-password-was-read-interactively
-                (setq simplenote-password nil))
-            (setq simplenote-token nil)
-            (setq simplenote-token-set-at nil)
-            (message "Simplenote authentication failed")))))
-  simplenote-token)
+  (let ((token (simplenote-get-token (simplenote-email) (simplenote-password))))
+    (if token
+        (message "Simplenote authentication succeeded")
+      (if simplenote-email-was-read-interactively
+          (setq simplenote-email nil))
+      (if simplenote-password-was-read-interactively
+          (setq simplenote-password nil))
+      (message "Simplenote authentication failed"))
+    token))
 
 
 ;;; API calls for index and notes
