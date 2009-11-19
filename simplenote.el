@@ -494,7 +494,6 @@
                (concat (file-name-as-directory simplenote-directory) key)))
 
 (defun simplenote-create-note-locally ()
-  (interactive)
   (let (new-notes-dir new-filename counter)
     (setq new-notes-dir (concat (file-name-as-directory simplenote-directory) ".new"))
     (if (not (file-exists-p new-notes-dir))
@@ -506,6 +505,8 @@
       (setq counter (+ 1 counter))
       (setq new-filename (concat (file-name-as-directory new-notes-dir)
                                  (format "%d" counter))))
+    (write-region "New note" nil new-filename nil)
+    (simplenote-browser-refresh)
     (find-file new-filename)))
 
 
