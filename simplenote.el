@@ -365,6 +365,8 @@
 
 (defun simplenote-browse ()
   (interactive)
+  (when (not (file-exists-p simplenote-directory))
+      (make-directory simplenote-directory t))
   (switch-to-buffer "*Simplenote*")
   (setq buffer-read-only t)
   (simplenote-browse-mode)
