@@ -255,9 +255,8 @@
 
 (defun simplenote-sync-notes ()
   (interactive)
-  (if (not (file-exists-p simplenote-directory))
+  (when (not (file-exists-p simplenote-directory))
       (make-directory simplenote-directory t))
-
 
   (let (index files files-marked-deleted new-notes-dir)
     (setq files (directory-files simplenote-directory t "^[a-zA-Z0-9_\\-]\\{36\\}$"))
@@ -331,25 +330,26 @@
     ;; If a new file has been locally created then create a new note and rename
     ;; the local file
     (setq new-notes-dir (concat (file-name-as-directory simplenote-directory) ".new"))
-    (loop for file in (directory-files new-notes-dir t "[0-9]+") do
-          (let (temp-buffer text note-key mod-time)
-            (setq temp-buffer (get-buffer-create " *simplenote-temp*"))
-            (with-current-buffer temp-buffer
-              (insert-file-contents file nil nil nil t)
-              (setq text (encode-coding-string (buffer-string) 'utf-8)))
-            (kill-buffer " *simplenote-temp*")
-            (setq mod-time (nth 5 (file-attributes file)))
-            (setq note-key (simplenote-create-note text
-                                                   (simplenote-token)
-                                                   (simplenote-email)
-                                                   (simplenote-file-mtime-gmt file)))
-            (when note-key
-              (let (new-filename)
-                (setq new-filename (concat (file-name-as-directory simplenote-directory)
-                                           note-key))
-                (rename-file file new-filename)
-                (set-file-times new-filename mod-time))
-              )))
+    (when (file-exists-p new-notes-dir)
+      (loop for file in (directory-files new-notes-dir t "[0-9]+") do
+            (let (temp-buffer text note-key mod-time)
+              (setq temp-buffer (get-buffer-create " *simplenote-temp*"))
+              (with-current-buffer temp-buffer
+                (insert-file-contents file nil nil nil t)
+                (setq text (encode-coding-string (buffer-string) 'utf-8)))
+              (kill-buffer " *simplenote-temp*")
+              (setq mod-time (nth 5 (file-attributes file)))
+              (setq note-key (simplenote-create-note text
+                                                     (simplenote-token)
+                                                     (simplenote-email)
+                                                     (simplenote-file-mtime-gmt file)))
+              (when note-key
+                (let (new-filename)
+                  (setq new-filename (concat (file-name-as-directory simplenote-directory)
+                                             note-key))
+                  (rename-file file new-filename)
+                  (set-file-times new-filename mod-time))
+                ))))
 
     ;; Refresh the browser
     (let (sn-browse-buf)
@@ -408,10 +408,11 @@
   (widget-insert "\n\n")
   (let (files new-notes new-notes-dir lines1 lines2)
     (setq new-notes-dir (concat (file-name-as-directory simplenote-directory) ".new"))
-    (setq new-notes (directory-files new-notes-dir nil "^[0-9]+$"))
-    (if new-notes
-        (widget-insert "== NEW NOTES\n\n"))
-    (setq lines1 (mapcar '(lambda (n) (simplenote-note-widget n t)) new-notes))
+    (when (file-exists-p new-notes-dir)
+      (setq new-notes (directory-files new-notes-dir nil "^[0-9]+$"))
+      (when new-notes
+        (widget-insert "== NEW NOTES\n\n")
+        (setq lines1 (mapcar '(lambda (n) (simplenote-note-widget n t)) new-notes))))
     (setq files (directory-files simplenote-directory nil "^[a-zA-Z0-9_\\-]\\{36\\}-?$"))
     (setq files (sort files 'simplenote-note-newer-p))
     (if files
