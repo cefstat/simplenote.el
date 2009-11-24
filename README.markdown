@@ -13,6 +13,20 @@ peril and keep a backup of your notes.
 
 The software is distributed under the GPL license version 2.
 
+## Requirements
+
+This package relies on your system having either `gnutls-cli` or `openssl` in
+order to make secure connections to the Simplenote server. The latter comes
+pre-installed with Mac OS X and (usually) Linux. For Windows you will need to
+install one of these clients. The `openssl` client appears to be available from
+[http://openssl.org/related/binaries.html]() or
+[http://gnuwin32.sourceforge.net/packages/openssl.htm]() and `gnutls-cli` from
+[http://josefsson.org/gnutls4win/](). 
+
+It is possible to set the command that is used for the secure connection to the
+Simplenote server by changing the value of the `tls-program` variable. For more
+information consult the documentation for the `tls.el` package.
+
 ## Installation
 
 After downloading the package, put the file `simplenote.el` in a directory where
