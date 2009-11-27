@@ -15,19 +15,26 @@ The software is distributed under the GPL license version 2.
 
 ## Requirements
 
-This package relies on your system having either `gnutls-cli` or `openssl` in
-order to make secure connections to the Simplenote server. The latter comes
-pre-installed with Mac OS X and (usually) Linux. For Windows you will need to
-install one of these clients. The `openssl` client appears to be available from
-[http://openssl.org/related/binaries.html]() or
-[http://gnuwin32.sourceforge.net/packages/openssl.htm]() and `gnutls-cli` from
-[http://josefsson.org/gnutls4win/](). 
+This package relies on your system having a program that can establish secure
+connections to the Simplenote serverm, such as `openssl`. `openssl` comes
+pre-installed with Mac OS X and Linux. For Windows you will need to install
+`openssl` before using `simplenote.el`. The `openssl` client appears to be
+available from [http://openssl.org/related/binaries.html]() or
+[http://gnuwin32.sourceforge.net/packages/openssl.htm]().
 
-It is possible to set the command that is used for the secure connection to the
-Simplenote server by changing the value of the `tls-program` variable. For more
-information consult the documentation for the `tls.el` package.
+If you have `gnutls-cli` installed on your system, then Emacs' `tls.el` will
+first try to use this program to establish a secure connection. This doesn't
+work for me. If you have problems with `gnutls-cli` you can either uninstall it,
+or change the value of the `tls-program` variable. For more information consult
+the documentation for the `tls.el` package.
 
-## Installation
+## Installation and configuration
+
+**Important note:** If you are already using a version of `simplenote.el` before
+  Nov. 26 2009, first make sure that your local notes are synced to the
+  Simplenote server and then do a clean install of `simplenote.el` by removing
+  the `simplenote-directory` (by default `~/.simplenote`). Then follow the
+  current installation instructions.
 
 After downloading the package, put the file `simplenote.el` in a directory where
 Emacs can find it during startup and then add in your `.emacs` the lines
@@ -35,11 +42,15 @@ Emacs can find it during startup and then add in your `.emacs` the lines
     (require 'simplenote)
     (setq simplenote-email "email@company.com")
     (setq simplenote-password "yourpassword")
+    (simplenote-setup)
     
 where the email and password are the ones that you use to login to the
 Simplenote application. `simplenote.el` keeps a local copy of your notes in a
 directory defined in the variable `simplenote-directory`. Its default value is
-`~/.simplenote`.
+`~/.simplenote`. You can change the value of `simplenote-directory` before
+calling `simplenote-setup`. The latter checks for the existence of
+`simplenote-directory` and some necessary sub-directories and creates these if
+they do not exist.
 
 ## Usage
 
@@ -85,8 +96,6 @@ the server respectively.
 
 ## Future
 
-* Improve the documentation.
-* Clean up the code.
 * Get rid of the need for a **[Refresh]** button.
 * Handle gracefully the case where there is no connection to the Simplenote server.
 

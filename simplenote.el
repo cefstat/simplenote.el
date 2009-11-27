@@ -251,14 +251,57 @@
       (message "Failed to pull note %s" simplenote-key))))
 
 
-;;; Simplenote sync
+;;; Browser helper functions
+
+(defun simplenote-trash-dir ()
+  (file-name-as-directory (concat (file-name-as-directory simplenote-directory) "trash")))
+
+(defun simplenote-notes-dir ()
+  (file-name-as-directory (concat (file-name-as-directory simplenote-directory) "notes")))
+
+(defun simplenote-new-notes-dir ()
+  (file-name-as-directory (concat (file-name-as-directory simplenote-directory) "new")))
+
+(defun simplenote-setup ()
+  (interactive)
+  (when (not (file-exists-p simplenote-directory))
+    (make-directory simplenote-directory t))
+  (when (not (file-exists-p (simplenote-notes-dir)))
+    (make-directory (simplenote-notes-dir) t))
+  (when (not (file-exists-p (simplenote-trash-dir)))
+    (make-directory (simplenote-trash-dir) t))
+  (when (not (file-exists-p (simplenote-new-notes-dir)))
+    (make-directory (simplenote-new-notes-dir) t)))
+
+(defun simplenote-filename-for-note (key)
+  (concat (simplenote-notes-dir) key))
+
+(defun simplenote-filename-for-note-marked-deleted (key)
+  (concat (simplenote-trash-dir) key))
+
+(defun simplenote-file-contents (file)
+  (let (temp-buffer contents)
+    (setq temp-buffer (get-buffer-create " *simplenote-temp*"))
+    (with-current-buffer temp-buffer
+      (insert-file-contents file nil nil nil t)
+      (setq contents (encode-coding-string (buffer-string) 'utf-8)))
+    (kill-buffer " *simplenote-temp*")
+    contents))
+
+(defun simplenote-file-short-contents (file)
+  (let ((contents (simplenote-file-contents file)))
+    (replace-regexp-in-string
+     "\n" 
+     " " 
+     (substring contents 0 (min 78 (length contents))))))
+
+
+;; Simplenote sync
 
 (defun simplenote-sync-notes ()
   (interactive)
-  (when (not (file-exists-p simplenote-directory))
-      (make-directory simplenote-directory t))
 
-  (let (index index-keys files files-marked-deleted new-notes-dir)
+  (let (index index-keys files files-marked-deleted)
 
     ;; Try to download the index. If this fails then the connection is broken or
     ;; authentication failed. Abort sync.
@@ -266,18 +309,17 @@
     (if (not index)
         (message "Could not retrieve the index. Aborting sync.")
 
-      (setq index-keys (loop for elem across index collect (cdr (assoc 'key elem))))
-      (setq files (directory-files simplenote-directory t "^[a-zA-Z0-9_\\-]\\{36\\}$"))
-      (setq files-marked-deleted (directory-files simplenote-directory t
-                                                  "^[a-zA-Z0-9_\\-]\\{36\\}-$"))
+      (setq keys-in-index (mapcar '(lambda (e) (cdr (assoc 'key e))) index))
+      (setq files (directory-files (simplenote-notes-dir) t "^[a-zA-Z0-9_\\-]\\{36\\}$"))
+      (setq files-marked-deleted (directory-files (simplenote-trash-dir) t "^[a-zA-Z0-9_\\-]\\{36\\}$"))
 
       ;; If a file has been marked locally as deleted then sync the deletion and
       ;; delete from the file system provided that the corresponding key is in
       ;; the index. If the key is not in the index just delete the local file.
       (loop for file in files-marked-deleted do
             (let (key success)
-              (setq key (substring (file-name-nondirectory file) 0 -1))
-              (if (member key index-keys)
+              (setq key (file-name-nondirectory file))
+              (if (member key keys-in-index)
                 (progn
                   (setq success (simplenote-mark-note-as-deleted key
                                                                  (simplenote-token)
@@ -285,26 +327,30 @@
                   (when success
                     (message "Marked note %s as deleted on the server" key)
                     (message "Deleting local file %s" file)
-                    (delete-file file)))
+                    (delete-file file)
+                    (setq keys-in-index (delete key keys-in-index))
+                    (setq index (delete-if
+                                 '(lambda (e) (equal key (cdr (assoc 'key e))))
+                                 index))))
                 (message "Local file %s has been marked deleted locally and does not appear in the index. Deleting." file)
                 (delete-file file))))
       
       ;; Loop over all notes in the index.
       (loop for elem across index do
-            (let (key deleted modify path path-del note-text note-key temp-buffer)
+            (let (key deleted modify file note-text note-key temp-buffer)
               (setq key (cdr (assoc 'key elem)))
               (setq deleted (eq (cdr (assoc 'deleted elem)) t))
               (setq modify (date-to-time (cdr (assoc 'modify elem))))
-              (setq path (concat (file-name-as-directory simplenote-directory) key))
-              ;; Remove the note from the list of files to delete. At the end
-              ;; of the loop `files` will contain only those files that (1)
-              ;; have not been marked locally as deleted and (2) they are not
-              ;; contained in the index.
-              (setq files (delete path files))
+              (setq file (simplenote-filename-for-note key))
+              ;; Remove the file corresponding to this index element from the
+              ;; list of files. At the end of the loop `files` will contain only
+              ;; those files that (1) have not been marked locally as deleted
+              ;; and (2) they are not contained in the index.
+              (setq files (delete file files))
               (when (not deleted)
                 ;; Download
-                (when (or (not (file-exists-p path))
-                          (time-less-p (nth 5 (file-attributes path)) modify))
+                (when (or (not (file-exists-p file))
+                          (time-less-p (nth 5 (file-attributes file)) modify))
                   (message "Downloading note %s from Simplenote" key)
                   (multiple-value-bind (note-text note-key note-createdate
                                                   note-modifydate note-deleted)
@@ -312,66 +358,54 @@
                     (if note-text
                         (progn
                           (message "Downloaded note %s" key)
-                          (write-region note-text nil path nil)
-                          (set-file-times path note-modifydate))
+                          (write-region note-text nil file nil)
+                          (set-file-times file note-modifydate))
                       (message "Failed to download note %s" key))))
                 ;; Upload
-                (when (and (file-exists-p path)
-                           (time-less-p modify (nth 5 (file-attributes path))))
+                (when (and (file-exists-p file)
+                           (time-less-p modify (nth 5 (file-attributes file))))
                   (message "Uploading note %s to Simplenote" key)
-                  (setq temp-buffer (get-buffer-create " *simplenote-temp*"))
-                  (with-current-buffer temp-buffer
-                    (insert-file-contents path nil nil nil t)
-                    (setq note-text (encode-coding-string (buffer-string) 'utf-8)))
-                  (kill-buffer " *simplenote-temp*")
+                  (setq note-text (simplenote-file-contents file))
                   (setq note-key (simplenote-update-note key
                                                          note-text
                                                          (simplenote-token)
                                                          (simplenote-email)
-                                                         (simplenote-file-mtime-gmt path)))
+                                                         (simplenote-file-mtime-gmt file)))
                   (if note-key
                       (message "Uploaded note %s" note-key)
                     (message "Failed to upload note %s" note-key))))
               ;; If a note in the index is marked as deleted and the
               ;; corresponding local file exists then delete the file.
-              (when (and deleted (file-exists-p path))
-                (message "Note %s has been marked deleted on the server. Deleting local file %s" key path)
-                (delete-file path))))
+              (when (and deleted (file-exists-p file))
+                (message "Note %s has been marked deleted on the server. Deleting local file %s" key file)
+                (delete-file file))))
       
       ;; If a file is not in the index then delete it from the file system.
       (loop for file in files do
             (let (key)
               (setq key (file-name-nondirectory file))
-              (if (member key index-keys)
+              (if (member key keys-in-index)
                   (message "Key %s is not supposed to be in the index." key)
                 (message "The note %s has not been found in the index. Deleting file %s" key file)
                 (delete-file file))))
-        
+      
       ;; If a new file has been locally created then create a new note on the
       ;; server and rename the local file after getting the key of the new note
       ;; from the server.
-      (setq new-notes-dir (concat (file-name-as-directory simplenote-directory) ".new"))
-      (when (file-exists-p new-notes-dir)
-        (loop for file in (directory-files new-notes-dir t "[0-9]+") do
-              (let (temp-buffer text note-key mod-time)
-                (setq temp-buffer (get-buffer-create " *simplenote-temp*"))
-                (with-current-buffer temp-buffer
-                  (insert-file-contents file nil nil nil t)
-                  (setq text (encode-coding-string (buffer-string) 'utf-8)))
-                (kill-buffer " *simplenote-temp*")
-                (setq mod-time (nth 5 (file-attributes file)))
-                (setq note-key (simplenote-create-note text
-                                                       (simplenote-token)
-                                                       (simplenote-email)
-                                                       (simplenote-file-mtime-gmt file)))
-                (when note-key
-                  (message "Created new note on the server with key %s" note-key)
-                  (let (new-filename)
-                    (setq new-filename (concat (file-name-as-directory simplenote-directory)
-                                               note-key))
-                    (rename-file file new-filename)
-                    (set-file-times new-filename mod-time))
-                  ))))
+      (loop for file in (directory-files (simplenote-new-notes-dir) t "^note-[0-9]+$") do
+            (let (text note-key mod-time)
+              (setq text (simplenote-file-contents file))
+              (setq mod-time (nth 5 (file-attributes file)))
+              (setq note-key (simplenote-create-note text
+                                                     (simplenote-token)
+                                                     (simplenote-email)
+                                                     (simplenote-file-mtime-gmt file)))
+              (when note-key
+                (message "Created new note on the server with key %s" note-key)
+                (let (new-filename)
+                  (setq new-filename (simplenote-filename-for-note note-key))
+                  (rename-file file new-filename)
+                  (set-file-times new-filename mod-time)))))
       
       ;; Refresh the browser
       (let (curr-buf)
@@ -391,25 +425,22 @@
       (make-directory simplenote-directory t))
   (switch-to-buffer "*Simplenote*")
   (setq buffer-read-only t)
-  (simplenote-browse-mode)
-  (simplenote-menu-setup))
+  (kill-all-local-variables)
+  (simplenote-menu-setup)
+  (goto-char 1))
 
 (defun simplenote-browser-refresh ()
   (interactive)
   (simplenote-browse))
 
-(defun simplenote-browse-mode ()
-  (interactive)
-  (kill-all-local-variables)
-  (setq major-mode 'simplenote-browse-mode)
-  (setq mode-name "Simplenote"))
-
 (defun simplenote-menu-setup ()
   (let ((inhibit-read-only t))
     (erase-buffer))
   (remove-overlays)
+  ;; Buttons
   (widget-create 'link
                  :format "%[%v%]"
+                 :help-echo "Synchronize with the Simplenote server"
                  :notify (lambda (widget &rest ignore)
                            (simplenote-sync-notes)
                            (simplenote-browser-refresh))
@@ -417,12 +448,14 @@
   (widget-insert "  ")
   (widget-create 'link
                  :format "%[%v%]"
+                 :help-echo "Refresh the browser (only local changes)"
                  :notify (lambda (widget &rest ignore)
                              (simplenote-browser-refresh))
                  "Refresh")
   (widget-insert "  ")
   (widget-create 'link
                  :format "%[%v%]"
+                 :help-echo "Create a new note"
                  :notify (lambda (widget &rest ignore)
                            (let (buf)
                              (setq buf (simplenote-create-note-locally))
@@ -430,31 +463,87 @@
                              (switch-to-buffer buf)))
                  "Create new note")
   (widget-insert "\n\n")
-  (let (files new-notes new-notes-dir lines1 lines2)
-    (setq new-notes-dir (concat (file-name-as-directory simplenote-directory) ".new"))
-    (when (file-exists-p new-notes-dir)
-      (setq new-notes (directory-files new-notes-dir nil "^[0-9]+$"))
-      (when new-notes
-        (widget-insert "== NEW NOTES\n\n")
-        (setq lines1 (mapcar '(lambda (n) (simplenote-note-widget n t)) new-notes))))
-    (setq files (directory-files simplenote-directory nil "^[a-zA-Z0-9_\\-]\\{36\\}-?$"))
-    (setq files (sort files 'simplenote-note-newer-p))
-    (if files
-        (widget-insert "== NOTES\n\n"))
-    (setq lines2 (mapcar 'simplenote-note-widget files))
-    (widget-create 'group :value lines2))
+  ;; New notes list
+  (let ((new-notes (directory-files (simplenote-new-notes-dir) t "^note-[0-9]+$")))
+    (when new-notes
+      (widget-insert "== NEW NOTES\n\n")
+      (mapc 'simplenote-new-note-widget new-notes)))
+  ;; Other notes list
+  (let (files)
+    (setq files (append
+                 (mapcar '(lambda (file) (cons file nil))
+                         (directory-files (simplenote-notes-dir) t "^[a-zA-Z0-9_\\-]\\{36\\}$"))
+                 (mapcar '(lambda (file) (cons file t))
+                         (directory-files (simplenote-trash-dir) t "^[a-zA-Z0-9_\\-]\\{36\\}$"))))
+    (when files
+      (setq files (sort files '(lambda (p1 p2) (simplenote-file-newer-p (car p1) (car p2)))))
+      (widget-insert "== NOTES\n\n")
+      (mapc 'simplenote-other-note-widget files)))
   (use-local-map widget-keymap)
   (widget-setup))
 
-(defun simplenote-note-newer-p (key1 key2)
+(defun simplenote-file-newer-p (file1 file2)
   (let (time1 time2)
-    (setq time1
-          (nth 5 (file-attributes
-                  (concat (file-name-as-directory simplenote-directory) key1))))
-    (setq time2
-          (nth 5 (file-attributes
-                  (concat (file-name-as-directory simplenote-directory) key2))))
+    (setq time1 (nth 5 (file-attributes file1)))
+    (setq time2 (nth 5 (file-attributes file2)))
     (time-less-p time2 time1)))
+  
+(defun simplenote-new-note-widget (file)
+  (let (key modify modify-string note-text note-short)
+    (setq modify (nth 5 (file-attributes file)))
+    (setq modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
+    (setq note-short (simplenote-file-short-contents file))
+    (widget-create 'link
+                   :button-prefix ""
+                   :button-suffix ""
+                   :format "%[%v%]\n"
+                   :tag file
+                   :help-echo "Edit this note"
+                   :notify (lambda (widget &rest ignore)
+                             (find-file (widget-get widget :tag)))
+                   note-short)
+    (widget-insert (format "%s\n" modify-string))
+    (widget-create 'link
+                   :format "%[%v%]"
+                   :tag file
+                   :help-echo "Permanently remove this file"
+                   :notify (lambda (widget &rest ignore)
+                             (delete-file (widget-get widget :tag))
+                             (simplenote-browser-refresh))
+                   "Remove")
+    (widget-insert "\n\n")))
+
+(defun simplenote-other-note-widget (pair)
+  (let (file deleted key modify modify-string note-text note-short)
+    (setq file (car pair))
+    (setq deleted (cdr pair))
+    (setq key (file-name-nondirectory file))
+    (setq modify (nth 5 (file-attributes file)))
+    (setq modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
+    (setq note-short (simplenote-file-short-contents file))
+    (widget-create 'link
+                   :button-prefix ""
+                   :button-suffix ""
+                   :format "%[%v%]\n"
+                   :tag file
+                   :help-echo "Edit this note"
+                   :notify (lambda (widget &rest ignore)
+                             (find-file (widget-get widget :tag)))
+                   note-short)
+    (widget-insert (format "%s\t%s\n" key modify-string))
+    (widget-create 'link
+                   :format "%[%v%]"
+                   :tag key
+                   :help-echo (if deleted
+                                  "Mark this note as not deleted"
+                                "Mark this note as deleted")
+                   :notify (if deleted
+                               simplenote-undelete-me
+                             simplenote-delete-me)
+                   (if deleted
+                       "Undelete"
+                     "Delete"))
+    (widget-insert "\n\n")))
 
 (setq simplenote-delete-me
       (lambda (widget &rest ignore)
@@ -469,67 +558,22 @@
     (widget-put widget :notify simplenote-delete-me)
     (widget-value-set widget "Delete")
     (widget-setup)))
-  
-(defun simplenote-note-widget (file &optional new)
-  (let (key full-filename modify modify-string note-text note-short temp-buffer)
-    (if new
-        (setq full-filename (concat (file-name-as-directory simplenote-directory)
-                                    ".new/" file))
-      (setq key (substring file 0 36))
-      (setq full-filename (concat (file-name-as-directory simplenote-directory) file)))
-    (setq modify (nth 5 (file-attributes full-filename)))
-    (setq modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
-    (setq temp-buffer (get-buffer-create " *simplenote-temp*"))
-    (with-current-buffer temp-buffer
-      (insert-file-contents full-filename nil nil nil t)
-      (setq note-text (encode-coding-string (buffer-string) 'utf-8)))
-    (kill-buffer " *simplenote-temp*")
-    (setq note-short
-          (replace-regexp-in-string "\n" " "
-                                    (substring note-text 0 (min 78 (length note-text)))))
-    (widget-create 'link
-                   :button-prefix ""
-                   :button-suffix ""
-                   :format "%[%v%]\n"
-                   :tag full-filename
-                   :notify (lambda (widget &rest ignore)
-                             (find-file (widget-get widget :tag)))
-                   note-short)
-    (widget-insert (format "%s\t%s\n" key modify-string))
-    (when (not new)
-      (widget-create 'link
-                     :format "%[%v%]"
-                     :tag key
-                     :notify (if (eql (length file) 37)
-                                 simplenote-undelete-me
-                               simplenote-delete-me)
-                     (if (eql (length file) 37)
-                         "Undelete"
-                       "Delete"))
-      (widget-insert "\n"))
-    (widget-insert "\n")
-))
 
 (defun simplenote-mark-note-for-deletion (key)
-  (rename-file (concat (file-name-as-directory simplenote-directory) key)
-               (concat (file-name-as-directory simplenote-directory) key "-")))
+  (rename-file (simplenote-filename-for-note key)
+               (simplenote-filename-for-note-marked-deleted key)))
 
 (defun simplenote-unmark-note-for-deletion (key)
-  (rename-file (concat (file-name-as-directory simplenote-directory) key "-")
-               (concat (file-name-as-directory simplenote-directory) key)))
+  (rename-file (simplenote-filename-for-note-marked-deleted key)
+               (simplenote-filename-for-note key)))
 
 (defun simplenote-create-note-locally ()
-  (let (new-notes-dir new-filename counter)
-    (setq new-notes-dir (concat (file-name-as-directory simplenote-directory) ".new"))
-    (if (not (file-exists-p new-notes-dir))
-        (make-directory new-notes-dir))
+  (let (new-filename counter)
     (setq counter 0)
-    (setq new-filename (concat (file-name-as-directory new-notes-dir)
-                               (format "%d" counter)))
+    (setq new-filename (concat (simplenote-new-notes-dir) (format "note-%d" counter)))
     (while (file-exists-p new-filename)
-      (setq counter (+ 1 counter))
-      (setq new-filename (concat (file-name-as-directory new-notes-dir)
-                                 (format "%d" counter))))
+      (setq counter (1+ counter))
+      (setq new-filename (concat (simplenote-new-notes-dir) (format "note-%d" counter))))
     (write-region "New note" nil new-filename nil)
     (simplenote-browser-refresh)
     (find-file new-filename)))
@@ -538,4 +582,3 @@
 (provide 'simplenote)
 
 ;;; simplenote.el ends here
-
