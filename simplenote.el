@@ -289,7 +289,7 @@
     contents))
 
 (defun simplenote-file-short-contents (file)
-  (let ((contents (simplenote-file-contents file)))
+  (let ((contents (decode-coding-string (simplenote-file-contents file) 'utf-8)))
     (replace-regexp-in-string
      "\n" 
      " " 
