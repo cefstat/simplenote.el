@@ -1,6 +1,6 @@
 ;;  simplenote.el --- Interact with simple-note.appspot.com
 
-;; Copyright (C) 2009 Konstantinos Efstathiou <konstantinos@efstathiou.gr>
+;; Copyright (C) 2009, 2010 Konstantinos Efstathiou <konstantinos@efstathiou.gr>
 
 ;; Author: Konstantinos Efstathiou <konstantinos@efstathiou.gr>
 ;; Keywords: simplenote
