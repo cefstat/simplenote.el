@@ -308,8 +308,8 @@
         (message "Could not retrieve the index. Aborting sync.")
 
       (setq keys-in-index (mapcar '(lambda (e) (cdr (assoc 'key e))) index))
-      (setq files (directory-files (simplenote-notes-dir) t "^[a-zA-Z0-9_\\-]\\{36\\}$"))
-      (setq files-marked-deleted (directory-files (simplenote-trash-dir) t "^[a-zA-Z0-9_\\-]\\{36\\}$"))
+      (setq files (directory-files (simplenote-notes-dir) t "^[a-zA-Z0-9_\\-]+$"))
+      (setq files-marked-deleted (directory-files (simplenote-trash-dir) t "^[a-zA-Z0-9_\\-]+$"))
 
       ;; If a file has been marked locally as deleted then sync the deletion and
       ;; delete from the file system provided that the corresponding key is in
@@ -470,9 +470,9 @@
   (let (files)
     (setq files (append
                  (mapcar '(lambda (file) (cons file nil))
-                         (directory-files (simplenote-notes-dir) t "^[a-zA-Z0-9_\\-]\\{36\\}$"))
+                         (directory-files (simplenote-notes-dir) t "^[a-zA-Z0-9_\\-]+$"))
                  (mapcar '(lambda (file) (cons file t))
-                         (directory-files (simplenote-trash-dir) t "^[a-zA-Z0-9_\\-]\\{36\\}$"))))
+                         (directory-files (simplenote-trash-dir) t "^[a-zA-Z0-9_\\-]+$"))))
     (when files
       (setq files (sort files '(lambda (p1 p2) (simplenote-file-newer-p (car p1) (car p2)))))
       (widget-insert "== NOTES\n\n")
