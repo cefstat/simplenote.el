@@ -231,9 +231,7 @@
         (progn
           (setq simplenote-key key)
           (message "Created note %s" key)
-          (save-excursion
-            (goto-char (1+ (buffer-size)))
-            (insert (format "Local variables:\nsimplenote-key: \"%s\"\nEnd:\n" key)))
+          (add-file-local-variable 'simplenote-key key)
           (simplenote-push-buffer))
       (message "Failed to create new note"))))
 
