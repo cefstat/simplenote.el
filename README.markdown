@@ -17,24 +17,17 @@ The software is distributed under the GPL license version 2.
 
 This package relies on your system having a program that can establish secure
 connections to the Simplenote serverm, such as `openssl`. `openssl` comes
-pre-installed with Mac OS X and Linux. For Windows you will need to install
-`openssl` before using `simplenote.el`. The `openssl` client appears to be
-available from [http://openssl.org/related/binaries.html]() or
-[http://gnuwin32.sourceforge.net/packages/openssl.htm]().
+pre-installed with Mac OS X and Linux.
 
-If you have `gnutls-cli` installed on your system, then Emacs' `tls.el` will
-first try to use this program to establish a secure connection. This doesn't
-work for me. If you have problems with `gnutls-cli` you can either uninstall it,
-or change the value of the `tls-program` variable. For more information consult
-the documentation for the `tls.el` package.
+At the moment `simplenote.el` does not work under Windows. In principle it
+should work on Windows after installing `openssl` or `gnutls-cli`. The `openssl`
+client is available from [http://openssl.org/related/binaries.html]() or
+[http://gnuwin32.sourceforge.net/packages/openssl.htm](). Unfortunately, it
+appears that Emacs cannot communicate properly with the openssl subprocess under
+Windows and I have no idea what combination of Emacs and openssl binary could
+possibly solve this problem.
 
 ## Installation and configuration
-
-**Important note:** If you are already using a version of `simplenote.el` before
-  Nov. 26 2009, first make sure that your local notes are synced to the
-  Simplenote server and then do a clean install of `simplenote.el` by removing
-  the `simplenote-directory` (by default `~/.simplenote`). Then follow the
-  current installation instructions.
 
 After downloading the package, put the file `simplenote.el` in a directory where
 Emacs can find it during startup and then add in your `.emacs` the lines
@@ -80,7 +73,7 @@ through the iPhone Simplenote application or by using the Simplenote API.
 ### Sync individual files
 
 The idea here is that you have a text file that you want to edit on your iPhone
-when you can't use your laptop for example during a bus commute. First, while
+when you can't use your laptop, for example, during a bus commute. First, while
 visiting the text file that you want to sync run `M-x
 simplenote-create-note-from-buffer`. This will create a new note on the
 Simplenote server with the contents of your file. Each note is identified by a
