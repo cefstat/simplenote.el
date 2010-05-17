@@ -31,17 +31,20 @@
 
 (defcustom simplenote-directory (expand-file-name "~/.simplenote/")
   "Simplenote directory."
-  :safe t
+  :type 'directory
+  :safe 'stringp
   :group 'simplenote)
 
 (defcustom simplenote-email nil
   "Simplenote account email."
-  :safe t
+  :type 'string
+  :safe 'stringp
   :group 'simplenote)
 
 (defcustom simplenote-password nil
   "Simplenote account password."
-  :safe t
+  :type 'string
+  :safe 'stringp
   :group 'simplenote)
 
 
