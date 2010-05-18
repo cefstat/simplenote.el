@@ -47,6 +47,10 @@
   :safe 'stringp
   :group 'simplenote)
 
+(defvar simplenote-mode-hook nil)
+
+(put 'simplenote-mode 'mode-class 'special)
+
 
 ;;; Simplenote authentication
 
@@ -420,14 +424,30 @@
 
 ;;; Simplenote browser
 
+(defvar simplenote-mode-map
+  (let ((map (copy-keymap widget-keymap)))
+    (define-key map (kbd "g") 'simplenote-browser-refresh)
+    (define-key map (kbd "q") 'quit-window)
+    map))
+
+(defun simplenote-mode ()
+  "Browse and edit Simplenote notes locally and sync with the server.
+
+\\{simplenote-mode-map}"
+  (kill-all-local-variables)
+  (setq buffer-read-only t)
+  (use-local-map simplenote-mode-map)
+  (simplenote-menu-setup)
+  (setq major-mode 'simplenote-mode
+        mode-name "Simplenote")
+  (run-mode-hooks 'simplenote-mode-hook))
+
 (defun simplenote-browse ()
   (interactive)
   (when (not (file-exists-p simplenote-directory))
       (make-directory simplenote-directory t))
   (switch-to-buffer "*Simplenote*")
-  (setq buffer-read-only t)
-  (kill-all-local-variables)
-  (simplenote-menu-setup)
+  (simplenote-mode)
   (goto-char 1))
 
 (defun simplenote-browser-refresh ()
@@ -480,7 +500,7 @@
       (setq files (sort files '(lambda (p1 p2) (simplenote-file-newer-p (car p1) (car p2)))))
       (widget-insert "== NOTES\n\n")
       (mapc 'simplenote-other-note-widget files)))
-  (use-local-map widget-keymap)
+  (use-local-map simplenote-mode-map)
   (widget-setup))
 
 (defun simplenote-file-newer-p (file1 file2)
