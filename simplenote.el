@@ -47,6 +47,15 @@
   :safe 'stringp
   :group 'simplenote)
 
+(defcustom simplenote-notes-mode 'text-mode
+  "The mode used for editing notes opened from Simplenote.
+
+Since notes do not have file extensions, the default mode must be
+set via this option.  Individual notes can override this setting
+via the usual `-*- mode: text -*-' header line."
+  :type 'function
+  :group 'simplenote)
+
 (defvar simplenote-mode-hook nil)
 
 (put 'simplenote-mode 'mode-class 'special)
@@ -521,7 +530,10 @@
                    :tag file
                    :help-echo "Edit this note"
                    :notify (lambda (widget &rest ignore)
-                             (find-file (widget-get widget :tag)))
+                             (find-file (widget-get widget :tag))
+                             ;; Don't switch mode when set via file cookie
+                             (when (eq major-mode (default-value 'major-mode))
+                               (funcall simplenote-notes-mode)))
                    note-short)
     (widget-insert (format "%s\n" modify-string))
     (widget-create 'link
@@ -549,7 +561,10 @@
                    :tag file
                    :help-echo "Edit this note"
                    :notify (lambda (widget &rest ignore)
-                             (find-file (widget-get widget :tag)))
+                             (find-file (widget-get widget :tag))
+                             ;; Don't switch mode when set via file cookie
+                             (when (eq major-mode (default-value 'major-mode))
+                               (funcall simplenote-notes-mode)))
                    note-short)
     (widget-insert (format "%s\t%s\n" key modify-string))
     (widget-create 'link
@@ -597,7 +612,10 @@
       (setq new-filename (concat (simplenote-new-notes-dir) (format "note-%d" counter))))
     (write-region "New note" nil new-filename nil)
     (simplenote-browser-refresh)
-    (find-file new-filename)))
+    (find-file new-filename)
+    ;; Don't switch mode when set via file cookie
+    (when (eq major-mode (default-value 'major-mode))
+      (funcall simplenote-notes-mode))))
 
 
 (provide 'simplenote)
