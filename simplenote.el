@@ -321,12 +321,17 @@ setting."
   (prog1 (find-file file)
     ;; Don't switch mode when set via file cookie
     (when (eq major-mode (default-value 'major-mode))
-      (funcall simplenote-notes-mode))))
+      (funcall simplenote-notes-mode))
+    ;; Refresh notes display after save
+    (add-hook 'after-save-hook 
+              (lambda () (save-excursion (simplenote-browser-refresh)))
+              nil t)))
 
 
 ;; Simplenote sync
 
 (defun simplenote-sync-notes ()
+  "Synchronize local notes with the simplenote server."
   (interactive)
 
   (let (index index-keys files files-marked-deleted)
@@ -449,7 +454,7 @@ setting."
 
 (defvar simplenote-mode-map
   (let ((map (copy-keymap widget-keymap)))
-    (define-key map (kbd "g") 'simplenote-browser-refresh)
+    (define-key map (kbd "g") 'simplenote-sync-notes)
     (define-key map (kbd "q") 'quit-window)
     map))
 
@@ -488,14 +493,7 @@ setting."
                  :notify (lambda (widget &rest ignore)
                            (simplenote-sync-notes)
                            (simplenote-browser-refresh))
-                 "Sync")
-  (widget-insert "  ")
-  (widget-create 'link
-                 :format "%[%v%]"
-                 :help-echo "Refresh the browser (only local changes)"
-                 :notify (lambda (widget &rest ignore)
-                             (simplenote-browser-refresh))
-                 "Refresh")
+                 "Sync with server")
   (widget-insert "  ")
   (widget-create 'link
                  :format "%[%v%]"
@@ -504,8 +502,7 @@ setting."
                            (let (buf)
                              (setq buf (simplenote-create-note-locally))
                              (simplenote-browser-refresh)
-                             (switch-to-buffer buf)
-                             (funcall 'simplenote-notes-mode)))
+                             (switch-to-buffer buf)))
                  "Create new note")
   (widget-insert "\n\n")
   ;; New notes list
@@ -643,10 +640,7 @@ setting."
       (setq new-filename (concat (simplenote-new-notes-dir) (format "note-%d" counter))))
     (write-region "New note" nil new-filename nil)
     (simplenote-browser-refresh)
-    (find-file new-filename)
-    ;; Don't switch mode when set via file cookie
-    (when (eq major-mode (default-value 'major-mode))
-      (funcall simplenote-notes-mode))))
+    (simplenote-open-note new-filename)))
 
 
 (provide 'simplenote)
