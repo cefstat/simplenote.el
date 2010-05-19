@@ -82,22 +82,17 @@ via the usual `-*- mode: text -*-' header line."
   simplenote-password)
 
 (defun simplenote-get-token (email password)
-  (let (url url-request-method url-request-extra-headers url-request-data token)
-    (setq url "https://simple-note.appspot.com/api/login")
-    (setq url-request-method "POST")
-    (setq url-request-extra-headers
-          '(("Content-Type" . "application/x-www-form-urlencoded")))
-    (setq url-request-data
-          (base64-encode-string (format "email=%s&password=%s"
+  (let ((url "https://simple-note.appspot.com/api/login") 
+        (url-request-method "POST")
+        (url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded")))
+        (url-request-data (base64-encode-string (format "email=%s&password=%s"
                                         (url-hexify-string email)
-                                        (url-hexify-string password))))
+                                        (url-hexify-string password)))))
     (with-current-buffer (url-retrieve-synchronously url)
-      (setq status url-http-response-status)
-      (when (eql status 200)
+      (when (eql url-http-response-status 200)
         (goto-char (point-min))
         (search-forward-regexp "^$" nil t)
-        (setq token (buffer-substring (1+ (point)) (point-max)))))
-    token))
+        (buffer-substring (1+ (point)) (point-max))))))
 
 (defun simplenote-token ()
   (interactive)
@@ -226,7 +221,7 @@ via the usual `-*- mode: text -*-' header line."
     (save-buffer)
     (setq modifydate (simplenote-file-mtime-gmt (buffer-file-name)))
     (setq success (simplenote-update-note simplenote-key
-                                          (encode-coding-string (buffer-string) 'utf-8)
+                                          (encode-coding-string (buffer-string) 'utf-8 t)
                                           (simplenote-token)
                                           (simplenote-email)
                                           modifydate))
@@ -239,7 +234,7 @@ via the usual `-*- mode: text -*-' header line."
   (let (createdate key)
     (save-buffer)
     (setq createdate (simplenote-file-mtime-gmt (buffer-file-name)))
-    (setq key (simplenote-create-note (encode-coding-string (buffer-string) 'utf-8)
+    (setq key (simplenote-create-note (encode-coding-string (buffer-string) 'utf-8 t)
                                       (simplenote-token)
                                       (simplenote-email)
                                       createdate))
@@ -298,16 +293,35 @@ via the usual `-*- mode: text -*-' header line."
     (setq temp-buffer (get-buffer-create " *simplenote-temp*"))
     (with-current-buffer temp-buffer
       (insert-file-contents file nil nil nil t)
-      (setq contents (encode-coding-string (buffer-string) 'utf-8)))
+      (setq contents (encode-coding-string (buffer-string) 'utf-8 t)))
     (kill-buffer " *simplenote-temp*")
     contents))
 
-(defun simplenote-file-short-contents (file)
-  (let ((contents (decode-coding-string (simplenote-file-contents file) 'utf-8)))
-    (replace-regexp-in-string
-     "\n" 
-     " " 
-     (substring contents 0 (min 78 (length contents))))))
+(defun simplenote-note-headline (text)
+  "The first non-empty line of a note."
+  (let ((begin (string-match "^.+$" text)))
+    (when begin
+      (substring text begin (match-end 0)))))
+
+(defun simplenote-note-headrest (text)
+  "Text after the first non-empty line of a note, to fill in the list display."
+  (let* ((headline (simplenote-note-headline text))
+         (text (replace-regexp-in-string "\n" " " text))
+         (begin (when headline (string-match headline text))))
+    (when begin (substring text (match-end 0)
+                           (min (length text)
+                                (+ (match-end 0) (- 78 (length headline))))))))
+
+(defun simplenote-open-note (file)
+  "Opens FILE in a new buffer, setting its mode, and returns the buffer.
+
+The major mode of the resulting buffer will be set to
+`simplenote-notes-mode' but can be overridden by a file-local
+setting."
+  (prog1 (find-file file)
+    ;; Don't switch mode when set via file cookie
+    (when (eq major-mode (default-value 'major-mode))
+      (funcall simplenote-notes-mode))))
 
 
 ;; Simplenote sync
@@ -490,7 +504,8 @@ via the usual `-*- mode: text -*-' header line."
                            (let (buf)
                              (setq buf (simplenote-create-note-locally))
                              (simplenote-browser-refresh)
-                             (switch-to-buffer buf)))
+                             (switch-to-buffer buf)
+                             (funcall 'simplenote-notes-mode)))
                  "Create new note")
   (widget-insert "\n\n")
   ;; New notes list
@@ -519,23 +534,31 @@ via the usual `-*- mode: text -*-' header line."
     (time-less-p time2 time1)))
   
 (defun simplenote-new-note-widget (file)
-  (let (key modify modify-string note-text note-short)
-    (setq modify (nth 5 (file-attributes file)))
-    (setq modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
-    (setq note-short (simplenote-file-short-contents file))
+  (let* ((modify (nth 5 (file-attributes file)))
+         (modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
+         (note (simplenote-file-contents file))
+         (headline (simplenote-note-headline note))
+         (shorttext (simplenote-note-headrest note)))
     (widget-create 'link
                    :button-prefix ""
                    :button-suffix ""
-                   :format "%[%v%]\n"
+                   :format "%[%v%]"
                    :tag file
                    :help-echo "Edit this note"
                    :notify (lambda (widget &rest ignore)
-                             (find-file (widget-get widget :tag))
-                             ;; Don't switch mode when set via file cookie
-                             (when (eq major-mode (default-value 'major-mode))
-                               (funcall simplenote-notes-mode)))
-                   note-short)
-    (widget-insert (format "%s\n" modify-string))
+                             (simplenote-open-note (widget-get widget :tag)))
+                   headline)
+    (widget-insert shorttext "\n")
+    (widget-insert "  " modify-string "\t                                      \t")
+    (widget-create 'link
+                   :tag file
+                   :value "Edit"
+                   :format "%[%v%]"
+                   :help-echo "Edit this note"
+                   :notify (lambda (widget &rest ignore)
+                             (simplenote-open-note (widget-get widget :tag)))
+                    "Edit")
+    (widget-insert " ")
     (widget-create 'link
                    :format "%[%v%]"
                    :tag file
@@ -547,26 +570,34 @@ via the usual `-*- mode: text -*-' header line."
     (widget-insert "\n\n")))
 
 (defun simplenote-other-note-widget (pair)
-  (let (file deleted key modify modify-string note-text note-short)
-    (setq file (car pair))
-    (setq deleted (cdr pair))
-    (setq key (file-name-nondirectory file))
-    (setq modify (nth 5 (file-attributes file)))
-    (setq modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
-    (setq note-short (simplenote-file-short-contents file))
-    (widget-create 'link
+  (let* ((file (car pair))
+         (deleted (cdr pair))
+         (key (file-name-nondirectory file))
+         (modify (nth 5 (file-attributes file)))
+         (modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
+         (note (simplenote-file-contents file))
+         (headline (simplenote-note-headline note))
+         (shorttext (simplenote-note-headrest note)))
+    (widget-create 'link 
                    :button-prefix ""
                    :button-suffix ""
-                   :format "%[%v%]\n"
+                   :format "%[%v%]"
                    :tag file
                    :help-echo "Edit this note"
                    :notify (lambda (widget &rest ignore)
-                             (find-file (widget-get widget :tag))
-                             ;; Don't switch mode when set via file cookie
-                             (when (eq major-mode (default-value 'major-mode))
-                               (funcall simplenote-notes-mode)))
-                   note-short)
-    (widget-insert (format "%s\t%s\n" key modify-string))
+                             (simplenote-open-note (widget-get widget :tag)))
+                   headline)
+    (widget-insert shorttext "\n")
+    (widget-insert "  " modify-string "\t" (propertize key 'face 'shadow) "\t")
+    (widget-create 'link
+                   :tag file
+                   :value "Edit"
+                   :format "%[%v%]"
+                   :help-echo "Edit this note"
+                   :notify (lambda (widget &rest ignore)
+                             (simplenote-open-note (widget-get widget :tag)))
+                    "Edit")
+    (widget-insert " ")
     (widget-create 'link
                    :format "%[%v%]"
                    :tag key
