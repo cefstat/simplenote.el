@@ -441,13 +441,8 @@ setting."
                   (set-file-times new-filename mod-time)))))
       
       ;; Refresh the browser
-      (let (curr-buf)
-        (setq curr-buf (current-buffer))
-        (when (get-buffer "*Simplenote*")
-          (save-excursion
-            (simplenote-browser-refresh))
-          (switch-to-buffer curr-buf))))))
-
+      (save-excursion
+        (simplenote-browser-refresh)))))
 
 
 ;;; Simplenote browser
@@ -480,7 +475,10 @@ setting."
 
 (defun simplenote-browser-refresh ()
   (interactive)
-  (simplenote-browse))
+  (when (get-buffer "*Simplenote*")
+    (set-buffer "*Simplenote*")
+    (simplenote-menu-setup)))
+
 
 (defun simplenote-menu-setup ()
   (let ((inhibit-read-only t))
