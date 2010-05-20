@@ -533,7 +533,7 @@ setting."
 (defun simplenote-new-note-widget (file)
   (let* ((modify (nth 5 (file-attributes file)))
          (modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
-         (note (simplenote-file-contents file))
+         (note (decode-coding-string (simplenote-file-contents file) 'utf-8 t))
          (headline (simplenote-note-headline note))
          (shorttext (simplenote-note-headrest note)))
     (widget-create 'link
@@ -572,7 +572,7 @@ setting."
          (key (file-name-nondirectory file))
          (modify (nth 5 (file-attributes file)))
          (modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
-         (note (simplenote-file-contents file))
+         (note (decode-coding-string (simplenote-file-contents file) 'utf-8 t))
          (headline (simplenote-note-headline note))
          (shorttext (simplenote-note-headrest note)))
     (widget-create 'link 
