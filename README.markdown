@@ -16,7 +16,7 @@ The software is distributed under the GPL license version 2.
 ## Requirements
 
 This package relies on your system having a program that can establish secure
-connections to the Simplenote serverm, such as `openssl`. `openssl` comes
+connections to the Simplenote server, such as `openssl`. `openssl` comes
 pre-installed with Mac OS X and Linux.
 
 At the moment `simplenote.el` does not work under Windows. In principle it
@@ -89,7 +89,6 @@ the server respectively.
 
 ## Future
 
-* Get rid of the need for a **[Refresh]** button.
 * Handle gracefully the case where there is no connection to the Simplenote server.
 
 [cf]: http://cloud-factory.com/
