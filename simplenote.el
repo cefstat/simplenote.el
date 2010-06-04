@@ -297,11 +297,14 @@ via the usual `-*- mode: text -*-' header line."
     (kill-buffer " *simplenote-temp*")
     contents))
 
+(setq simplenote-note-head-size 78)
+
 (defun simplenote-note-headline (text)
   "The first non-empty line of a note."
   (let ((begin (string-match "^.+$" text)))
     (when begin
-      (substring text begin (match-end 0)))))
+      (substring text begin (min (match-end 0)
+                                 (+ begin simplenote-note-head-size))))))
 
 (defun simplenote-note-headrest (text)
   "Text after the first non-empty line of a note, to fill in the list display."
@@ -310,7 +313,7 @@ via the usual `-*- mode: text -*-' header line."
          (begin (when headline (string-match (regexp-quote headline) text))))
     (when begin (substring text (match-end 0)
                            (min (length text)
-                                (+ (match-end 0) (- 78 (length headline))))))))
+                                (+ (match-end 0) (- simplenote-note-head-size (length headline))))))))
 
 (defun simplenote-open-note (file)
   "Opens FILE in a new buffer, setting its mode, and returns the buffer.
