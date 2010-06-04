@@ -307,7 +307,7 @@ via the usual `-*- mode: text -*-' header line."
   "Text after the first non-empty line of a note, to fill in the list display."
   (let* ((headline (simplenote-note-headline text))
          (text (replace-regexp-in-string "\n" " " text))
-         (begin (when headline (string-match headline text))))
+         (begin (when headline (string-match (regexp-quote headline) text))))
     (when begin (substring text (match-end 0)
                            (min (length text)
                                 (+ (match-end 0) (- 78 (length headline))))))))
