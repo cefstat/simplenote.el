@@ -297,7 +297,8 @@ via the usual `-*- mode: text -*-' header line."
     (kill-buffer " *simplenote-temp*")
     contents))
 
-(setq simplenote-note-head-size 78)
+(defvar simplenote-note-head-size 78
+  "Length of note headline in the notes list.")
 
 (defun simplenote-note-headline (text)
   "The first non-empty line of a note."
