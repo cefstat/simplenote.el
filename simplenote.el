@@ -63,6 +63,9 @@ via the usual `-*- mode: text -*-' header line."
 
 ;;; Simplenote authentication
 
+(defun simplenote-encode-post-data (string)
+  (concat (base64-encode-string string) "\n"))
+
 (defvar simplenote-key nil)
 (make-variable-buffer-local 'simplenote-key)
 
@@ -85,7 +88,7 @@ via the usual `-*- mode: text -*-' header line."
   (let ((url "https://simple-note.appspot.com/api/login") 
         (url-request-method "POST")
         (url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded")))
-        (url-request-data (base64-encode-string (format "email=%s&password=%s"
+        (url-request-data (simplenote-encode-post-data (format "email=%s&password=%s"
                                         (url-hexify-string email)
                                         (url-hexify-string password)))))
     (with-current-buffer (url-retrieve-synchronously url)
@@ -175,7 +178,7 @@ via the usual `-*- mode: text -*-' header line."
                  (url-hexify-string token)
                  (url-hexify-string email))))
     (setq url-request-method "POST")
-    (setq url-request-data (base64-encode-string text))
+    (setq url-request-data (simplenote-encode-post-data text))
     (with-current-buffer (url-retrieve-synchronously url)
       (setq status url-http-response-status)
       (when (eql status 200)
@@ -197,7 +200,7 @@ via the usual `-*- mode: text -*-' header line."
                  (url-hexify-string token)
                  (url-hexify-string email))))
     (setq url-request-method "POST")
-    (setq url-request-data (base64-encode-string text))
+    (setq url-request-data (simplenote-encode-post-data text))
     (with-current-buffer (url-retrieve-synchronously url)
       (setq status url-http-response-status)
       (when (eql status 200)
