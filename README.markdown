@@ -15,17 +15,15 @@ The software is distributed under the GPL license version 2.
 
 ## Requirements
 
-This package relies on your system having a program that can establish secure
-connections to the Simplenote server, such as `openssl`. `openssl` comes
-pre-installed with Mac OS X and Linux.
+This package relies on your system having a program that can establish secure connections to the Simplenote server, such as `openssl` or `gnutls-cli`.
 
-At the moment `simplenote.el` does not work under Windows. In principle it
-should work on Windows after installing `openssl` or `gnutls-cli`. The `openssl`
-client is available from [http://openssl.org/related/binaries.html]() or
-[http://gnuwin32.sourceforge.net/packages/openssl.htm](). Unfortunately, it
-appears that Emacs cannot communicate properly with the openssl subprocess under
-Windows and I have no idea what combination of Emacs and openssl binary could
-possibly solve this problem.
+### Mac OS X
+
+`openssl` is pre-installed under Mac OS X.
+
+### Windows
+
+Under Windows you need to use `gnutls-cli` under Cygwin (tested with Cygwin 1.7.5-1). The Cygwin `bin` directory, by default `c:/cygwin/bin`, should be in your path. ‘Standalone´ versions of `openssl` or `gnutls-cli` do not appear to work under Windows.
 
 ## Installation and configuration
 
