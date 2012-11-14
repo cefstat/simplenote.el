@@ -1,9 +1,10 @@
-;;  simplenote.el --- Interact with simple-note.appspot.com
+;;; simplenote.el --- Interact with simple-note.appspot.com
 
 ;; Copyright (C) 2009, 2010 Konstantinos Efstathiou <konstantinos@efstathiou.gr>
 
 ;; Author: Konstantinos Efstathiou <konstantinos@efstathiou.gr>
 ;; Keywords: simplenote
+;; Version: 1.0
 
 ;; This program is free software; you can redistribute it and/or modify it under
 ;; the terms of the GNU General Public License as published by the Free Software
@@ -85,7 +86,7 @@ via the usual `-*- mode: text -*-' header line."
   simplenote-password)
 
 (defun simplenote-get-token (email password)
-  (let ((url "https://simple-note.appspot.com/api/login") 
+  (let ((url "https://simple-note.appspot.com/api/login")
         (url-request-method "POST")
         (url-request-extra-headers '(("Content-Type" . "application/x-www-form-urlencoded")))
         (url-request-data (simplenote-encode-post-data (format "email=%s&password=%s"
@@ -330,7 +331,7 @@ setting."
     (when (eq major-mode (default-value 'major-mode))
       (funcall simplenote-notes-mode))
     ;; Refresh notes display after save
-    (add-hook 'after-save-hook 
+    (add-hook 'after-save-hook
               (lambda () (save-excursion (simplenote-browser-refresh)))
               nil t)))
 
@@ -374,7 +375,7 @@ setting."
                                  index))))
                 (message "Local file %s has been marked deleted locally and does not appear in the index. Deleting." file)
                 (delete-file file))))
-      
+
       ;; Loop over all notes in the index.
       (loop for elem across index do
             (let (key deleted modify file note-text note-key temp-buffer)
@@ -419,7 +420,7 @@ setting."
               (when (and deleted (file-exists-p file))
                 (message "Note %s has been marked deleted on the server. Deleting local file %s" key file)
                 (delete-file file))))
-      
+
       ;; If a file is not in the index then delete it from the file system.
       (loop for file in files do
             (let (key)
@@ -428,7 +429,7 @@ setting."
                   (message "Key %s is not supposed to be in the index." key)
                 (message "The note %s has not been found in the index. Deleting file %s" key file)
                 (delete-file file))))
-      
+
       ;; If a new file has been locally created then create a new note on the
       ;; server and rename the local file after getting the key of the new note
       ;; from the server.
@@ -446,7 +447,7 @@ setting."
                   (setq new-filename (simplenote-filename-for-note note-key))
                   (rename-file file new-filename)
                   (set-file-times new-filename mod-time)))))
-      
+
       ;; Refresh the browser
       (save-excursion
         (simplenote-browser-refresh)))))
@@ -534,7 +535,7 @@ setting."
     (setq time1 (nth 5 (file-attributes file1)))
     (setq time2 (nth 5 (file-attributes file2)))
     (time-less-p time2 time1)))
-  
+
 (defun simplenote-new-note-widget (file)
   (let* ((modify (nth 5 (file-attributes file)))
          (modify-string (format-time-string "%Y-%m-%d %H:%M:%S" modify))
@@ -580,7 +581,7 @@ setting."
          (note (decode-coding-string (simplenote-file-contents file) 'utf-8 t))
          (headline (simplenote-note-headline note))
          (shorttext (simplenote-note-headrest note)))
-    (widget-create 'link 
+    (widget-create 'link
                    :button-prefix ""
                    :button-suffix ""
                    :format "%[%v%]"
