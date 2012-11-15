@@ -1,3 +1,5 @@
+**IMPORTANT** I have stopped maintaining this package. You can find a maintained version at <https://github.com/dotemacs/simplenote.el>.
+
 # simplenote.el
 
 This is a very simple, and at the moment very rough, Emacs lisp package that can assist your interaction with the [Simplenote][sn] iPhone application and web application developed by the [Cloud Factory][cf]. Notice that `simplenote.el` is not developed or endorsed by the Cloud Factory.
